@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <!-- 引入样式 -->
+    <link rel="stylesheet" href="../../plugins/element-ui/index.css" />
+    <link rel="stylesheet" href="../../styles/common.css" />
+    <link rel="stylesheet" href="../../styles/page.css" />
+
+    <style>
+        .selectInput {
+            position: relative;
+            width: 100%;
+            min-width: 100px;
+        }
+        .selectInput .flavorSelect {
+            position: absolute;
+            width: 100%;
+            padding: 0 10px;
+            border-radius: 3px;
+            border: solid 1px #FF903D;
+            line-height: 30px;
+            text-align: center;
+            background: #fff;
+            top: 50px;
+            z-index: 99;
+        }
+        .selectInput .flavorSelect .items {
+            cursor: pointer;
+            display: inline-block;
+            width: 100%;
+            line-height: 35px;
+            border-bottom: solid 1px #f4f4f4;
+            color: #666;
+        }
+        .selectInput .flavorSelect .none {
+            font-size: 14px;
+        }
+
+        #food-add-app .uploadImg .el-form-item__label::before{
+            content: '*';
+            color: #F56C6C;
+            margin-right: 4px;
+        }
+
+    </style>
+</head>
+<body>
+<div class="dashboard-container" id="feed-app">
+    <div class="container">
+        <div class="tableBar_center" >
+            <div class="tableLab">
+                <el-button
+                        round
+                        @click="addFeeds()"
+                        icon="el-icon-edit-outline"
+                        style="color: rgb(254,174,2);border-color: rgb(254,174,2)"
+                >
+                    记录
+                </el-button>
+            </div>
+        </div>
+        <el-table
+                :data="tableData"
+                stripe
+                class="tableBox"
+                @selection-change="handleSelectionChange"
+        >
+            <el-table-column
+                    prop="createTime"
+                    label="投喂时间">
+            </el-table-column>
+            <el-table-column
+                    prop="feedRecord"
+                    label="记录"
+            ></el-table-column>
+            <el-table-column
+                    label="点个赞"
+                    width="160"
+                    align="center"
+            >
+                <template slot-scope="scope">
+                    <div >
+                        <el-button  v-if="zans[scope.$index]" type="warning" icon="el-icon-star-off" circle size="mini" @click="setZan(scope.$index)"></el-button>
+                        <el-button v-else  type="warning" icon="el-icon-star-on" circle size="mini" @click="cancelZan(scope.$index)"></el-button>
+                    </div>
+                </template>
+            </el-table-column>
+        </el-table>
+        <el-pagination
+                class="pageList"
+                :page-sizes="[10, 20, 30, 40]"
+                :page-size="pageSize"
+                layout="total, sizes, prev, pager, next, jumper"
+                :total="counts"
+                @size-change="handleSizeChange"
+                :current-page.sync="page"
+                @current-change="handleCurrentChange"
+        ></el-pagination>
+    </div>
+    <el-dialog
+            :title="classData.title"
+            :visible.sync="classData.dialogVisible"
+            width="30%"
+            :before-close="handleClose"
+    >
+        <el-form
+                label-width="100px"
+                class="demo-ruleForm"
+        >
+            <el-form-item
+                    label="投喂猫猫:"
+            >
+                <el-select
+                        v-model="classData.catId"
+                        filterable
+                        placeholder="选择猫猫"
+                >
+                    <el-option v-for="item in catList" :key="item.id" :label="item.catName" :value="item.id" />
+                </el-select>
+            </el-form-item>
+            <el-form-item label="♨投喂食物：">
+                <el-input v-model="classData.foodName" placeholder="请输入投喂的食物" />
+            </el-form-item>
+        </el-form>
+        <span
+                slot="footer"
+                class="dialog-footer"
+        >
+        <el-button
+                type="primary"
+                size="medium"
+                @click="submitForm()"
+        >确 定</el-button>
+        <el-button
+                size="medium"
+                @click="classData.dialogVisible = false"
+        >取 消</el-button>
+      </span>
+    </el-dialog>
+</div>
+<!-- 开发环境版本，包含了有帮助的命令行警告 -->
+<script src="../../plugins/vue/vue.js"></script>
+<!-- 引入组件库 -->
+<script src="../../plugins/element-ui/index.js"></script>
+<!-- 引入axios -->
+<script src="../../plugins/axios/axios.min.js"></script>
+<script src="../../js/request.js"></script>
+<script src="../../api/feed.js"></script>
+<script>
+    new Vue({
+        el: '#feed-app',
+        data() {
+            return {
+                input: '',
+                counts: 0,
+                page: 1,
+                pageSize: 10,
+                tableData : [],
+                zans:[],
+                checkList: [],
+                imageUrl: '',
+                catList:[],
+                classData: {
+                    'title': '新的投喂记录',
+                    'dialogVisible': false,
+                    'foodName': '',
+                    'catId': '',
+                    'createTime':''
+                }
+            }
+        },
+        computed: {},
+        created() {
+            this.init()
+        },
+        mounted() {
+        },
+        methods: {
+            async init () {
+                const params = {
+                    page: this.page,
+                    pageSize: this.pageSize,
+                    name: this.input ? this.input : undefined
+                }
+                await getFeedPage(params).then(res => {
+                    if (String(res.code) === '1') {
+                        this.tableData = res.data.records || []
+                        this.counts = res.data.total
+                        this.zans = new Array(this.counts).fill(true)
+                    }
+                }).catch(err => {
+                    this.$message.error('请求出错了：' + err)
+                })
+            },
+            getImage (image) {
+                return `/common/download?name=${image}`
+            },
+            handleQuery() {
+                this.page = 1;
+                this.init();
+            },
+            setZan(row){
+                Vue.set(this.zans,row,false)
+                this.$message.success('为投喂者点赞')
+            },
+            cancelZan(row){
+                Vue.set(this.zans,row,true)
+            },
+            // 添加
+            addFeeds() {
+                this.classData.name = ''
+                this.classData.location = ''
+                this.imageUrl=''
+                this.classData.dialogVisible = true
+                queryCatList().then(res => {
+                    if (String(res.code) === '1') {
+                        this.catList = res.data
+                    }
+                }).catch(err => {
+                    this.$message.error('请求出错了：' + err)
+                })
+            },
+            // 全部操作
+            handleSelectionChange (val){
+                let checkArr = []
+                val.forEach((n) => {
+                    checkArr.push(n.id)
+                })
+                this.checkList = checkArr
+            },
+            handleSizeChange (val) {
+                this.pageSize = val
+                this.init()
+            },
+            handleCurrentChange (val) {
+                this.page = val
+                this.init()
+            },
+            // 关闭弹窗
+            handleClose(st) {
+                this.classData.dialogVisible = false
+            },
+            handleAvatarSuccess (response, file, fileList) {
+                // 拼接down接口预览
+                if(response.code === 0 && response.msg === '未登录'){
+                    window.top.location.href = '/backend/page/login/login.html'
+                }else{
+                    this.imageUrl = `/common/download?name=${response.data}`
+                    this.tableData.recordImage = response.data
+                }
+            },
+            //数据提交
+            submitForm(st) {
+                const classData = this.classData
+                const valid = (classData.catId === 0 ||classData.catId)  && (classData.foodName === 0 || classData.foodName)
+                if (valid) {
+                    addFeed({'catId': classData.catId,'foodName':classData.foodName}).then(res => {
+                        console.log(res)
+                        if (res.code === 1) {
+                            this.$message.success('记录成功！')
+                            if (!st) {
+                                this.classData.dialogVisible = false
+                            } else {
+                                this.classData.catId = ''
+                                this.classData.foodName = ''
+                            }
+                            this.handleQuery()
+                        } else {
+                            this.$message.error(res.msg || '操作失败')
+                        }
+                    }).catch(err => {
+                        this.$message.error('请求出错了：' + err)
+                    })
+                } else {
+                    this.$message.error('请选择猫猫名或投喂食物')
+                }
+            }
+        }
+    })
+</script>
+</body>
+</html>

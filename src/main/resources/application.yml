@@ -1,0 +1,29 @@
+server:
+  port: 8080
+spring:
+  devtools:
+    livereload:
+      enabled: true
+  application:
+    name: carecat
+  datasource:
+    druid:
+      driver-class-name: com.mysql.cj.jdbc.Driver
+      url: jdbc:mysql://localhost:3306/carecat
+      username: root
+      password: 961376413
+  servlet:
+    multipart:
+      enabled: true
+      max-file-size: 5MB
+      max-request-size: 20MB
+mybatis-plus:
+  configuration:
+    #在映射实体或者属性时，将数据库中表名和字段名中的下划线去掉，按照驼峰命名法映射
+    map-underscore-to-camel-case: true
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+  global-config:
+    db-config:
+      id-type: ASSIGN_ID
+catcare:
+  path: D:\study\大三上\数据库实验\lab4\carecat
